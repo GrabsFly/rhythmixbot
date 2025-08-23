@@ -149,10 +149,11 @@ client.lavalink = new LavalinkManager({
 client.once('ready', async () => {
     console.log(`✅ ${client.user.tag} is online!`);
     console.log(`🎵 Rhythmix is ready to serve ${client.guilds.cache.size} guilds!`);
+    console.log(`🌐 Visit rhythmixbot.xyz for more information!`);
     
     // Set default bot activity status
     try {
-        await client.user.setActivity('/help for all commands', {
+        await client.user.setActivity('/help for all commands | rhythmixbot.xyz | rhythmixbot.xyz', {
             type: 2 // LISTENING activity type
         });
         console.log('🎵 Bot activity status set!');
@@ -349,11 +350,13 @@ async function handleMusicButtons(interaction, client) {
             case 'music_stop':
                 player.queue.splice(0, player.queue.tracks.length);
                 
-                // Clear bot activity status
+                // Set default bot activity status
                 try {
-                    await client.user.setActivity(null);
+                    await client.user.setActivity('/help for all commands | rhythmixbot.xyz | rhythmixbot.xyz', {
+                        type: 2 // LISTENING activity type
+                    });
                 } catch (error) {
-                    console.error('Error clearing bot activity:', error);
+                    console.error('Error setting bot activity:', error);
                 }
                 
                 // Clean up now playing message
@@ -949,9 +952,9 @@ function setupLavalinkEventListeners() {
             webServer.onMusicEvent();
         }
         
-        // Set bot activity status to show what's playing
+        // Keep default bot activity status
         try {
-            await client.user.setActivity('/help for all commands', {
+            await client.user.setActivity('/help for all commands | rhythmixbot.xyz', {
                 type: 2 // LISTENING activity type
             });
         } catch (error) {
@@ -1029,11 +1032,13 @@ function setupLavalinkEventListeners() {
             webServer.onMusicEvent();
         }
         
-        // Clear bot activity status when queue ends
+        // Set default bot activity status when queue ends
         try {
-            await client.user.setActivity(null);
+            await client.user.setActivity('/help for all commands | rhythmixbot.xyz | rhythmixbot.xyz', {
+                type: 2 // LISTENING activity type
+            });
         } catch (error) {
-            console.error('Error clearing bot activity:', error);
+            console.error('Error setting bot activity:', error);
         }
         
         // Clean up now playing message

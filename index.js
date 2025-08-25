@@ -19,7 +19,8 @@ try {
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessages
     ]
 });
 
@@ -780,15 +781,126 @@ function formatDuration(ms) {
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
     
-    const prefix = process.env.PREFIX || '!';
-    if (!message.content.startsWith(prefix)) return;
+    // Without MessageContent intent, we can only read content from:
+    // 1. Messages that mention the bot
+    // 2. DMs (which we're not handling here)
+    // 3. Messages from the bot itself
     
-    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    // Check if the message mentions the bot or if we can read the content
+    const botMentioned = message.mentions.has(client.user);
+    const canReadContent = message.content && message.content.length > 0;
+    
+    if (!canReadContent && !botMentioned) {
+        // If we can't read the content and the bot isn't mentioned, 
+        // send a helpful message about using slash commands
+        if (botMentioned) {
+            await message.reply('👋 Hi! I use slash commands now. Type `/` and you\'ll see all my commands! You can also enable the Message Content Intent in the Discord Developer Portal to use prefix commands.');
+        }
+        return;
+    }
+    
+    const prefix = process.env.PREFIX || '!';
+    let content = message.content;
+    
+    // If bot is mentioned, remove the mention from the content
+    if (botMentioned) {
+        content = content.replace(/<@!?\d+>/g, '').trim();
+        // If there's no content after removing mentions, show help
+        if (!content) {
+            await message.reply('👋 Hi! I use slash commands now. Type `/` and you\'ll see all my commands!');
+            return;
+        }
+        // If the content doesn't start with prefix, add it
+        if (!content.startsWith(prefix)) {
+            content = prefix + content;
+        }
+    }
+    
+    if (!content.startsWith(prefix)) return;
+    
+    const args = content.slice(prefix.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
     
-    // Handle basic prefix commands here if needed
-    if (commandName === 'ping') {
-        await message.reply('🏓 Pong!');
+    // Find the command
+    const command = client.commands.get(commandName);
+    if (!command) {
+        // Handle basic commands that don't have slash command equivalents
+        if (commandName === 'ping') {
+            await message.reply('🏓 Pong!');
+        } else {
+            await message.reply(`❌ Command \`${commandName}\` not found. Use \`/help\` to see available commands.`);
+        }
+        return;
+    }
+    
+    try {
+        // Create a mock interaction object for prefix commands
+        const mockInteraction = {
+            member: message.member,
+            guild: message.guild,
+            channel: message.channel,
+            user: message.author,
+            guildId: message.guild.id,
+            channelId: message.channel.id,
+            reply: async (content) => {
+                if (typeof content === 'string') {
+                    return await message.reply(content);
+                } else {
+                    return await message.reply(content);
+                }
+            },
+            deferReply: async () => {
+                // For prefix commands, we'll just send a typing indicator
+                await message.channel.sendTyping();
+            },
+            editReply: async (content) => {
+                // For prefix commands, just send a new message
+                if (typeof content === 'string') {
+                    return await message.reply(content);
+                } else {
+                    return await message.reply(content);
+                }
+            },
+            followUp: async (content) => {
+                if (typeof content === 'string') {
+                    return await message.reply(content);
+                } else {
+                    return await message.reply(content);
+                }
+            },
+            options: {
+                getString: (name) => {
+                    // Map common option names to arguments
+                    if (name === 'query' || name === 'song' || name === 'search') {
+                        return args.join(' ');
+                    }
+                    if (name === 'volume') {
+                        return args[0];
+                    }
+                    if (name === 'position' || name === 'index') {
+                        return args[0];
+                    }
+                    if (name === 'time') {
+                        return args[0];
+                    }
+                    return args[0];
+                },
+                getInteger: (name) => {
+                    const value = parseInt(args[0]);
+                    return isNaN(value) ? null : value;
+                },
+                getNumber: (name) => {
+                    const value = parseFloat(args[0]);
+                    return isNaN(value) ? null : value;
+                }
+            }
+        };
+        
+        // Execute the command
+        await command.execute(mockInteraction, client);
+    } catch (error) {
+        console.error('Error executing prefix command:', error);
+        await message.reply('❌ There was an error executing that command!');
     }
 });
 

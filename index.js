@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { LavalinkManager } = require('lavalink-client');
 const fs = require('fs');
 const path = require('path');
@@ -170,81 +170,52 @@ client.once('ready', async () => {
     
     try {
         console.log('🔄 Starting Lavalink initialization...');
-        console.log('🔍 NodeManager before init:', !!client.lavalink.nodeManager);
-        console.log('🔍 Nodes before init:', client.lavalink.nodes?.size || 0);
         
-        // Initialize Lavalink with comprehensive error handling
-        try {
-            // Set a flag to indicate Lavalink is not available initially
-            client.lavalinkAvailable = false;
-            
-            // Set up a timeout for initialization
-            const initPromise = client.lavalink.init({
-                id: client.user.id,
-                username: client.user.username
-            });
-            
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Lavalink initialization timeout')), 15000);
-            });
-            
-            await Promise.race([initPromise, timeoutPromise]);
-            console.log('✅ Lavalink initialized successfully');
-            
-            // Wait a bit for nodes to connect before marking as available
-            setTimeout(() => {
-                const connectedNodes = Array.from(client.lavalink.nodeManager.nodes.values()).filter(node => node.connected);
-                if (connectedNodes.length > 0) {
-                    client.lavalinkAvailable = true;
-                    console.log('✅ Lavalink is now available with connected nodes');
+        // Set a flag to indicate Lavalink is not available initially
+        client.lavalinkAvailable = false;
+        
+        // Initialize Lavalink with safe ASCII username
+        await client.lavalink.init({
+            id: client.user.id,
+            username: "MusicBot" // Use safe ASCII name instead of actual username
+        });
+        
+        console.log('✅ Lavalink initialized successfully');
+        
+        // Wait for nodes to connect with retry logic
+        let retryCount = 0;
+        const maxRetries = 10;
+        const checkInterval = 2000;
+        
+        const waitForConnection = () => {
+            return new Promise((resolve) => {
+                const checkConnection = () => {
+                    const connectedNodes = Array.from(client.lavalink.nodeManager.nodes.values()).filter(node => node.connected);
                     
-                    // Register Lavalink event listeners after connection is established
-                    setupLavalinkEventListeners();
-                } else {
-                    console.log('⚠️ Lavalink initialized but no nodes connected - using HTTP fallback');
-                }
-            }, 3000);
-            
-        } catch (error) {
-            console.warn('⚠️ Lavalink initialization failed, but bot will continue with direct HTTP fallback:', error.message);
-            // Set a flag to indicate Lavalink is not available
-            client.lavalinkAvailable = false;
-        }
-        
-        console.log('🔗 Lavalink connection initialized!');
-        console.log('🔍 Available nodes after init:', client.lavalink.nodes?.size || 0);
-        console.log('🔍 Node manager exists:', !!client.lavalink.nodeManager);
-        console.log('🔍 Nodes map exists:', !!client.lavalink.nodes);
-        
-        // Check if nodes are in the nodeManager
-        if (client.lavalink.nodeManager) {
-            console.log('🔍 NodeManager nodes count:', client.lavalink.nodeManager.nodes?.size || 0);
-            console.log('🔍 NodeManager nodes map:', !!client.lavalink.nodeManager.nodes);
-            
-            // Try to access and connect nodes directly
-            if (client.lavalink.nodeManager.nodes && client.lavalink.nodeManager.nodes.size > 0) {
-                console.log('🔍 Attempting to connect nodes manually...');
-                for (const [nodeId, node] of client.lavalink.nodeManager.nodes) {
-                    console.log(`🔍 Node ${nodeId} status:`, {
-                        connected: node.connected,
-                        connecting: node.connecting,
-                        destroyed: node.destroyed
-                    });
-                    
-                    if (!node.connected && !node.connecting) {
-                        console.log(`🔄 Manually connecting node ${nodeId}...`);
-                        try {
-                            await node.connect();
-                            console.log(`✅ Node ${nodeId} connection initiated`);
-                        } catch (error) {
-                            console.error(`❌ Failed to connect node ${nodeId}:`, error);
-                        }
+                    if (connectedNodes.length > 0) {
+                        client.lavalinkAvailable = true;
+                        console.log('✅ Lavalink is now available with connected nodes');
+                        setupLavalinkEventListeners();
+                        resolve(true);
+                    } else if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`🔄 Waiting for Lavalink nodes to connect... (${retryCount}/${maxRetries})`);
+                        setTimeout(checkConnection, checkInterval);
+                    } else {
+                        console.log('⚠️ Lavalink nodes failed to connect after maximum retries - using HTTP fallback');
+                        client.lavalinkAvailable = false;
+                        resolve(false);
                     }
-                }
-            }
-        }
+                };
+                checkConnection();
+            });
+        };
+        
+        await waitForConnection();
+        
     } catch (error) {
         console.error('❌ Failed to initialize Lavalink:', error);
+        client.lavalinkAvailable = false;
     }
     
     // Initialize and Start Web Server (only once)
@@ -254,6 +225,7 @@ client.once('ready', async () => {
             client.getTargetChannelId = getTargetChannelId;
             
             webServer = new WebServer(client);
+            client.webServer = webServer; // Attach to client for command access
             console.log('🌐 Web server initialized!');
             webServer.start();
             console.log('🌐 Web dashboard is now available!');
@@ -273,6 +245,21 @@ client.on('interactionCreate', async interaction => {
         if (!command) {
             console.error(`No command matching ${interaction.commandName} was found.`);
             return;
+        }
+        
+        // Check permissions for admin commands
+        const adminCommands = ['247', 'defaultvolume', 'settings'];
+        if (adminCommands.includes(interaction.commandName)) {
+            // Check if user has administrator permissions or manage guild permissions
+            const hasAdminPerms = interaction.member.permissions.has('Administrator') || 
+                                interaction.member.permissions.has('ManageGuild');
+            
+            if (!hasAdminPerms) {
+                return await interaction.reply({
+                    content: '❌ You need Administrator or Manage Server permissions to use this command.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
         }
         
         try {
@@ -303,8 +290,96 @@ client.on('interactionCreate', async interaction => {
             }
         }
     } else if (interaction.isButton()) {
+        // Handle settings back button first
+        if (interaction.customId === 'settings_back_to_main') {
+            // Check permissions
+            if (!interaction.member.permissions.has('Administrator') && 
+                !interaction.member.permissions.has('ManageGuild')) {
+                return await interaction.reply({
+                    content: '❌ You need Administrator or Manage Server permissions to access settings.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // Recreate the main settings embed (same as in commands/settings.js)
+            const { StringSelectMenuBuilder } = require('discord.js');
+            const webServer = client.webServer;
+            const guildSettings = await webServer.getGuildSettings(interaction.guildId);
+            
+            const currentChannelId = guildSettings?.nowPlayingChannelId;
+            const defaultVolume = guildSettings?.defaultVolume || 50;
+            const is247Mode = guildSettings?.is247Mode || false;
+            const autoLeave = guildSettings?.autoLeave !== false;
+
+            const embed = new EmbedBuilder()
+                .setColor('#0099ff')
+                .setTitle('⚙️ Bot Settings')
+                .setDescription(`Configure bot settings for **${interaction.guild.name}**`)
+                .addFields(
+                    { 
+                        name: '📺 Dashboard Channel', 
+                        value: currentChannelId ? 
+                            `<#${currentChannelId}>` : 
+                            '🔍 Auto-detection enabled', 
+                        inline: true 
+                    },
+                    { 
+                        name: '🔊 Default Volume', 
+                        value: `${defaultVolume}%`, 
+                        inline: true 
+                    },
+                    { 
+                        name: '🔄 24/7 Mode', 
+                        value: is247Mode ? '✅ Enabled' : '❌ Disabled', 
+                        inline: true 
+                    },
+                    { 
+                        name: '⏰ Auto-leave', 
+                        value: autoLeave ? '✅ Enabled' : '❌ Disabled', 
+                        inline: true 
+                    }
+                )
+                .addFields({
+                    name: '📝 Instructions',
+                    value: 'Use the dropdown menu below to configure specific settings.',
+                    inline: false
+                });
+
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId('settings_main_selector')
+                .setPlaceholder('Choose a setting to configure')
+                .addOptions(
+                    {
+                        label: '📺 Dashboard Channel',
+                        description: 'Set the channel for music notifications',
+                        value: 'dashboard_channel',
+                        emoji: '📺'
+                    },
+                    {
+                        label: '🔊 Default Volume',
+                        description: 'Set the default volume for new sessions',
+                        value: 'default_volume',
+                        emoji: '🔊'
+                    },
+                    {
+                        label: '🔄 24/7 Mode',
+                        description: 'Toggle 24/7 mode on/off',
+                        value: '247_mode',
+                        emoji: '🔄'
+                    }
+                );
+
+            const row = new ActionRowBuilder().addComponents(selectMenu);
+
+            await interaction.update({ embeds: [embed], components: [row] });
+            return;
+        }
+        
         // Handle button interactions for music controls
         await handleMusicButtons(interaction, client);
+    } else if (interaction.isStringSelectMenu()) {
+        // Handle dropdown menu interactions
+        await handleSelectMenuInteractions(interaction, client);
     }
 });
 
@@ -320,6 +395,151 @@ async function handleMusicButtons(interaction, client) {
         }
 
         const { customId } = interaction;
+        
+        // Handle settings buttons
+        if (customId === 'settings_247_enable' || customId === 'settings_247_disable') {
+            // Check permissions
+            if (!interaction.member.permissions.has('Administrator') && 
+                !interaction.member.permissions.has('ManageGuild')) {
+                return await interaction.reply({
+                    content: '❌ You need Administrator or Manage Server permissions to change settings.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const isEnabled = customId === 'settings_247_enable';
+            const fs = require('fs');
+            const path = require('path');
+            const settingsPath = path.join(__dirname, '247-settings.json');
+
+            try {
+                // Load existing settings
+                let settings = {};
+                if (fs.existsSync(settingsPath)) {
+                    settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+                }
+
+                // Update 24/7 setting
+                settings[interaction.guildId] = isEnabled;
+                fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+
+                // Update current player if exists
+                const currentPlayer = client.lavalink.getPlayer(interaction.guildId);
+                if (currentPlayer) {
+                    if (isEnabled) {
+                        currentPlayer.set('247', true);
+                    } else {
+                        currentPlayer.delete('247');
+                    }
+                }
+
+                const embed = new EmbedBuilder()
+                    .setColor(isEnabled ? '#00ff00' : '#ff0000')
+                    .setTitle(`${isEnabled ? '🔄 24/7 Mode Enabled' : '⏹️ 24/7 Mode Disabled'}`)
+                    .setDescription(isEnabled ? 
+                        'The bot will now stay in the voice channel 24/7 and won\'t leave when the queue is empty.' :
+                        'The bot will now leave the voice channel when the queue is empty or when everyone leaves.')
+                    .addFields(
+                        { name: 'Status', value: isEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+                        { name: 'Changed By', value: interaction.user.toString(), inline: true }
+                    )
+                    .setTimestamp();
+
+                await interaction.update({ embeds: [embed], components: [] });
+                return;
+            } catch (error) {
+                console.error('Error saving 24/7 setting:', error);
+                return await interaction.reply({
+                    content: '❌ Failed to save the 24/7 setting. Please try again.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+        }
+        
+        // Handle back to main settings button
+        if (customId === 'settings_back_to_main') {
+            // Check permissions
+            if (!interaction.member.permissions.has('Administrator') && 
+                !interaction.member.permissions.has('ManageGuild')) {
+                return await interaction.reply({
+                    content: '❌ You need Administrator or Manage Server permissions to access settings.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // Recreate the main settings embed (same as in commands/settings.js)
+            const { StringSelectMenuBuilder } = require('discord.js');
+            const webServer = client.webServer;
+            const guildSettings = await webServer.getGuildSettings(interaction.guildId);
+            
+            const currentChannelId = guildSettings?.nowPlayingChannelId;
+            const defaultVolume = guildSettings?.defaultVolume || 50;
+            const is247Mode = guildSettings?.is247Mode || false;
+            const autoLeave = guildSettings?.autoLeave !== false;
+
+            const embed = new EmbedBuilder()
+                .setColor('#0099ff')
+                .setTitle('⚙️ Bot Settings')
+                .setDescription(`Configure bot settings for **${interaction.guild.name}**`)
+                .addFields(
+                    { 
+                        name: '📺 Dashboard Channel', 
+                        value: currentChannelId ? 
+                            `<#${currentChannelId}>` : 
+                            '🔍 Auto-detection enabled', 
+                        inline: true 
+                    },
+                    { 
+                        name: '🔊 Default Volume', 
+                        value: `${defaultVolume}%`, 
+                        inline: true 
+                    },
+                    { 
+                        name: '🔄 24/7 Mode', 
+                        value: is247Mode ? '✅ Enabled' : '❌ Disabled', 
+                        inline: true 
+                    },
+                    { 
+                        name: '⏰ Auto-leave', 
+                        value: autoLeave ? '✅ Enabled' : '❌ Disabled', 
+                        inline: true 
+                    }
+                )
+                .addFields({
+                    name: '📝 Instructions',
+                    value: 'Use the dropdown menu below to configure specific settings.',
+                    inline: false
+                });
+
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId('settings_main_selector')
+                .setPlaceholder('Choose a setting to configure')
+                .addOptions(
+                    {
+                        label: '📺 Dashboard Channel',
+                        description: 'Set the channel for music notifications',
+                        value: 'dashboard_channel',
+                        emoji: '📺'
+                    },
+                    {
+                        label: '🔊 Default Volume',
+                        description: 'Set the default volume for new sessions',
+                        value: 'default_volume',
+                        emoji: '🔊'
+                    },
+                    {
+                        label: '🔄 24/7 Mode',
+                        description: 'Toggle 24/7 mode on/off',
+                        value: '247_mode',
+                        emoji: '🔄'
+                    }
+                );
+
+            const row = new ActionRowBuilder().addComponents(selectMenu);
+
+            await interaction.update({ embeds: [embed], components: [row] });
+            return;
+        }
         
         switch (customId) {
             case 'music_pause':
@@ -1273,9 +1493,23 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                                         .setFooter({ text: 'Auto-disconnect countdown' })
                                         .setTimestamp();
                                     
+                                    // Delete any existing 5-minute warning messages before sending 1-minute warning
+                                    const existingMessages = autoDisconnectMessages.get(newState.guild.id);
+                                    if (existingMessages && existingMessages.length > 0) {
+                                        for (const message of existingMessages) {
+                                            try {
+                                                await message.delete();
+                                            } catch (error) {
+                                                // Message might already be deleted, ignore error
+                                            }
+                                        }
+                                        // Clear the array but keep the reference
+                                        existingMessages.length = 0;
+                                    }
+                                    
                                     const warningMessage = await channel.send({ embeds: [warningEmbed] });
                                     
-                                    // Store the warning message
+                                    // Store the 1-minute warning message
                                     if (autoDisconnectMessages.has(newState.guild.id)) {
                                         autoDisconnectMessages.get(newState.guild.id).push(warningMessage);
                                     }
@@ -1308,9 +1542,23 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                                         .setFooter({ text: 'Auto-disconnect imminent' })
                                         .setTimestamp();
                                     
+                                    // Delete the 1-minute warning message before sending 30-second warning
+                                    const existingMessages = autoDisconnectMessages.get(newState.guild.id);
+                                    if (existingMessages && existingMessages.length > 0) {
+                                        for (const message of existingMessages) {
+                                            try {
+                                                await message.delete();
+                                            } catch (error) {
+                                                // Message might already be deleted, ignore error
+                                            }
+                                        }
+                                        // Clear the array but keep the reference
+                                        existingMessages.length = 0;
+                                    }
+                                    
                                     const finalWarningMessage = await channel.send({ embeds: [warningEmbed] });
                                     
-                                    // Store the final warning message
+                                    // Store the 30-second warning message
                                     if (autoDisconnectMessages.has(newState.guild.id)) {
                                         autoDisconnectMessages.get(newState.guild.id).push(finalWarningMessage);
                                     }
@@ -1343,6 +1591,18 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                                     }
                                 }
                                 
+                                // Delete the 30-second warning message before disconnecting
+                                const existingMessages = autoDisconnectMessages.get(newState.guild.id);
+                                if (existingMessages && existingMessages.length > 0) {
+                                    for (const message of existingMessages) {
+                                        try {
+                                            await message.delete();
+                                        } catch (error) {
+                                            // Message might already be deleted, ignore error
+                                        }
+                                    }
+                                }
+                                
                                 // Send disconnect embed message to text channel
                                 try {
                                     const targetChannelId = await getTargetChannelId(newState.guild.id, currentPlayer.textChannelId);
@@ -1359,7 +1619,16 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                                             .setFooter({ text: 'Music session ended' })
                                             .setTimestamp();
                                         
-                                        await channel.send({ embeds: [disconnectEmbed] });
+                                        const disconnectMessage = await channel.send({ embeds: [disconnectEmbed] });
+                                        
+                                        // Auto-delete disconnect message after 30 seconds
+                                        setTimeout(async () => {
+                                            try {
+                                                await disconnectMessage.delete();
+                                            } catch (error) {
+                                                // Message might already be deleted, ignore error
+                                            }
+                                        }, 30 * 1000); // 30 seconds
                                     }
                                 } catch (error) {
                                     console.log('Could not send disconnect message:', error.message);
@@ -1444,6 +1713,324 @@ process.on('SIGINT', () => {
     client.destroy();
     process.exit(0);
 });
+
+// Handle select menu interactions
+async function handleSelectMenuInteractions(interaction, client) {
+    try {
+        if (interaction.customId === 'settings_dashboard_channel') {
+            // Check permissions
+            if (!interaction.member.permissions.has('Administrator') && 
+                !interaction.member.permissions.has('ManageGuild')) {
+                return await interaction.reply({
+                    content: '❌ You need Administrator or Manage Server permissions to change settings.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const selectedValue = interaction.values[0];
+            const webServer = client.webServer;
+            
+            if (!webServer) {
+                return await interaction.reply({
+                    content: '❌ Web server is not available. Please contact the bot administrator.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            try {
+                if (selectedValue === 'auto-detect') {
+                    // Remove the specific channel setting to enable auto-detection
+                    await webServer.saveGuildSettings(interaction.guildId, {
+                        nowPlayingChannelId: null
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setColor('#00ff00')
+                        .setTitle('✅ Dashboard Channel Updated')
+                        .setDescription('Dashboard notifications will now use **auto-detection** to find music-related channels.')
+                        .addFields(
+                            { name: '🔍 Auto-detection', value: 'Enabled', inline: true },
+                            { name: '📝 Keywords', value: 'music, song, audio, sound, bot', inline: true }
+                        )
+                        .setTimestamp();
+
+                    await interaction.update({ embeds: [embed], components: [] });
+                } else {
+                    // Set specific channel
+                    const channel = interaction.guild.channels.cache.get(selectedValue);
+                    
+                    if (!channel) {
+                        return await interaction.reply({
+                            content: '❌ Selected channel not found. Please try again.',
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+
+                    // Check if bot has permissions in the selected channel
+                    if (!channel.permissionsFor(interaction.guild.members.me).has(['SendMessages', 'EmbedLinks'])) {
+                        return await interaction.reply({
+                            content: `❌ I don't have permission to send messages in ${channel}. Please ensure I have 'Send Messages' and 'Embed Links' permissions.`,
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+
+                    // Save the setting
+                    await webServer.saveGuildSettings(interaction.guildId, {
+                        nowPlayingChannelId: channel.id
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setColor('#00ff00')
+                        .setTitle('✅ Dashboard Channel Updated')
+                        .setDescription(`Web dashboard notifications will now be sent to ${channel}`)
+                        .addFields(
+                            { name: '📺 Channel', value: `${channel}`, inline: true },
+                            { name: '🆔 Channel ID', value: channel.id, inline: true }
+                        )
+                        .setTimestamp();
+
+                    await interaction.update({ embeds: [embed], components: [] });
+                }
+            } catch (error) {
+                console.error('Error saving dashboard channel setting:', error);
+                await interaction.reply({
+                    content: '❌ Failed to save the dashboard channel setting. Please try again.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+        } else if (interaction.customId === 'settings_main_selector') {
+            // Check permissions
+            if (!interaction.member.permissions.has('Administrator') && 
+                !interaction.member.permissions.has('ManageGuild')) {
+                return await interaction.reply({
+                    content: '❌ You need Administrator or Manage Server permissions to change settings.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const selectedSetting = interaction.values[0];
+            const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder } = require('discord.js');
+            
+            // Create back button
+            const backButton = new ButtonBuilder()
+                .setCustomId('settings_back_to_main')
+                .setLabel(' Back to Settings')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬅️');
+            
+            if (selectedSetting === 'dashboard_channel') {
+                // Get all text channels that the bot can send messages to
+                const allTextChannels = interaction.guild.channels.cache
+                    .filter(channel => 
+                        channel.type === ChannelType.GuildText && 
+                        channel.permissionsFor(interaction.guild.members.me).has(['SendMessages', 'EmbedLinks'])
+                    )
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                
+                const textChannels = allTextChannels.first(25); // Discord limit for select menu options
+                const webServer = client.webServer;
+                const guildSettings = await webServer.getGuildSettings(interaction.guildId);
+                const currentChannelId = guildSettings?.nowPlayingChannelId;
+
+                // Create dropdown menu options
+                const channelOptions = [
+                    {
+                        label: '🔍 Auto-detect (Default)',
+                        description: 'Automatically detect music-related channels',
+                        value: 'auto-detect',
+                        emoji: '🔍',
+                        default: !currentChannelId || !allTextChannels.get(currentChannelId)
+                    }
+                ];
+
+                // Add text channels to options
+                textChannels.forEach(channel => {
+                    channelOptions.push({
+                        label: `# ${channel.name}`,
+                        description: `Set ${channel.name} as dashboard channel`,
+                        value: channel.id,
+                        emoji: '📺',
+                        default: currentChannelId === channel.id
+                    });
+                });
+
+                const channelSelectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('settings_dashboard_channel')
+                    .setPlaceholder('Choose a channel for dashboard notifications')
+                    .addOptions(channelOptions);
+
+                // Create new embed for dashboard channel setting
+                const channelEmbed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle('📺 Dashboard Channel Settings')
+                    .setDescription(`Configure the channel where music notifications will be sent for **${interaction.guild.name}**.`);
+
+                // Show current setting
+                if (currentChannelId) {
+                    const currentChannel = interaction.guild.channels.cache.get(currentChannelId);
+                    channelEmbed.addFields({
+                        name: '📺 Current Dashboard Channel',
+                        value: currentChannel ? `${currentChannel}` : `⚠️ Channel not found (ID: ${currentChannelId})`,
+                        inline: false
+                    });
+                } else {
+                    channelEmbed.addFields({
+                        name: '📺 Current Dashboard Channel',
+                        value: '🔍 Auto-detection enabled',
+                        inline: false
+                    });
+                }
+
+                channelEmbed.addFields({
+                    name: '📝 Instructions',
+                    value: 'Select a channel from the dropdown below to set as your music dashboard channel.',
+                    inline: false
+                });
+
+                const row1 = new ActionRowBuilder().addComponents(channelSelectMenu);
+                const row2 = new ActionRowBuilder().addComponents(backButton);
+
+                await interaction.update({ embeds: [channelEmbed], components: [row1, row2] });
+            } else if (selectedSetting === 'default_volume') {
+                const webServer = client.webServer;
+                const guildSettings = await webServer.getGuildSettings(interaction.guildId);
+                const defaultVolume = guildSettings?.defaultVolume || 50;
+
+                // Create volume dropdown menu
+                const volumeOptions = [
+                    { label: '🔇 0% (Muted)', value: '0', default: defaultVolume === 0 },
+                    { label: '🔈 25% (Low)', value: '25', default: defaultVolume === 25 },
+                    { label: '🔉 50% (Medium)', value: '50', default: defaultVolume === 50 },
+                    { label: '🔊 75% (High)', value: '75', default: defaultVolume === 75 },
+                    { label: '🔊 100% (Maximum)', value: '100', default: defaultVolume === 100 }
+                ];
+
+                const volumeSelectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('settings_default_volume')
+                    .setPlaceholder('Choose default volume for new sessions')
+                    .addOptions(volumeOptions);
+
+                // Create new embed for volume setting
+                const volumeEmbed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle('🔊 Default Volume Settings')
+                    .setDescription(`Configure the default volume for new music sessions in **${interaction.guild.name}**.`)
+                    .addFields(
+                        { name: '🔊 Current Default Volume', value: `${defaultVolume}%`, inline: true },
+                        { name: '📝 Note', value: 'This applies to new sessions only', inline: true }
+                    )
+                    .addFields({
+                        name: '📝 Instructions',
+                        value: 'Select a new default volume from the dropdown below.',
+                        inline: false
+                    });
+
+                const row1 = new ActionRowBuilder().addComponents(volumeSelectMenu);
+                const row2 = new ActionRowBuilder().addComponents(backButton);
+
+                await interaction.update({ embeds: [volumeEmbed], components: [row1, row2] });
+            } else if (selectedSetting === '247_mode') {
+                const webServer = client.webServer;
+                const guildSettings = await webServer.getGuildSettings(interaction.guildId);
+                const is247Mode = guildSettings?.is247Mode || false;
+
+                // Create 24/7 mode buttons
+                const enable247Button = new ButtonBuilder()
+                    .setCustomId('settings_247_enable')
+                    .setLabel('Enable 24/7 Mode')
+                    .setStyle(is247Mode ? ButtonStyle.Success : ButtonStyle.Secondary)
+                    .setEmoji('✅');
+
+                const disable247Button = new ButtonBuilder()
+                    .setCustomId('settings_247_disable')
+                    .setLabel('Disable 24/7 Mode')
+                    .setStyle(!is247Mode ? ButtonStyle.Danger : ButtonStyle.Secondary)
+                    .setEmoji('❌');
+
+                // Create new embed for 24/7 mode setting
+                const mode247Embed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle('🔄 24/7 Mode Settings')
+                    .setDescription(`Configure 24/7 mode for **${interaction.guild.name}**.`)
+                    .addFields(
+                        { name: '🔄 Current 24/7 Mode', value: is247Mode ? '✅ Enabled' : '❌ Disabled', inline: true },
+                        { name: '📝 Description', value: is247Mode ? 'Bot stays in voice channel 24/7' : 'Bot leaves when queue is empty', inline: true }
+                    )
+                    .addFields({
+                        name: '📝 Instructions',
+                        value: 'Use the buttons below to enable or disable 24/7 mode.',
+                        inline: false
+                    });
+
+                const row1 = new ActionRowBuilder().addComponents(enable247Button, disable247Button);
+                const row2 = new ActionRowBuilder().addComponents(backButton);
+
+                await interaction.update({ embeds: [mode247Embed], components: [row1, row2] });
+            }
+        } else if (interaction.customId === 'settings_default_volume') {
+            // Check permissions
+            if (!interaction.member.permissions.has('Administrator') && 
+                !interaction.member.permissions.has('ManageGuild')) {
+                return await interaction.reply({
+                    content: '❌ You need Administrator or Manage Server permissions to change settings.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const selectedVolume = parseInt(interaction.values[0]);
+            const fs = require('fs');
+            const path = require('path');
+            const settingsPath = path.join(__dirname, 'default-volume-settings.json');
+
+            try {
+                // Load existing settings
+                let settings = {};
+                if (fs.existsSync(settingsPath)) {
+                    settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+                }
+
+                // Update volume setting
+                settings[interaction.guildId] = selectedVolume;
+                fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+
+                const embed = new EmbedBuilder()
+                    .setColor('#00ff00')
+                    .setTitle('✅ Default Volume Updated')
+                    .setDescription(`Default volume has been set to **${selectedVolume}%** for new music sessions.`)
+                    .addFields(
+                        { name: '🔊 New Volume', value: `${selectedVolume}%`, inline: true },
+                        { name: '📝 Note', value: 'This applies to new sessions only', inline: true }
+                    )
+                    .setTimestamp();
+
+                await interaction.update({ embeds: [embed], components: [] });
+            } catch (error) {
+                console.error('Error saving volume setting:', error);
+                await interaction.reply({
+                    content: '❌ Failed to save the volume setting. Please try again.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error handling select menu interaction:', error);
+        
+        const errorMessage = {
+            content: '❌ An error occurred while processing your selection.',
+            flags: MessageFlags.Ephemeral
+        };
+        
+        try {
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp(errorMessage);
+            } else {
+                await interaction.reply(errorMessage);
+            }
+        } catch (replyError) {
+            console.warn('⚠️ Could not send error message to user:', replyError.message);
+        }
+    }
+}
 
 process.on('SIGTERM', () => {
     console.log('\n🛑 Shutting down gracefully...');

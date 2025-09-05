@@ -1062,7 +1062,7 @@ class WebServer {
                         hasBotAlready,
                         canManageBot: hasManageGuild || hasAdministrator,
                         canAccessSettings: hasManageGuild || hasAdministrator,
-                        permissionLevel: hasAdministrator ? 'administrator' : hasManageGuild ? 'manage_guild' : 'member',
+                        permissionLevel: guild.owner ? 'owner' : hasAdministrator ? 'administrator' : hasManageGuild ? 'manage_guild' : 'member',
                         inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=${process.env.CLIENT_ID}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}`
                     };
                 });
@@ -1659,6 +1659,20 @@ class WebServer {
 
             const queuePosition = player?.queue?.tracks?.length || 0;
             const isPlaying = player?.playing && !player?.paused;
+            const hasCurrentTrack = player?.queue?.current !== null && player?.queue?.current !== undefined;
+            
+            // Determine the correct queue position display
+            let queuePositionDisplay;
+            if (!hasCurrentTrack && queuePosition === 1) {
+                // First song and nothing is currently playing
+                queuePositionDisplay = 'Now Playing';
+            } else if (hasCurrentTrack && queuePosition > 0) {
+                // There's a current track playing, so this is queued
+                queuePositionDisplay = `#${queuePosition}`;
+            } else {
+                // Fallback
+                queuePositionDisplay = queuePosition > 0 ? `#${queuePosition}` : 'Now Playing';
+            }
             
             const embed = new EmbedBuilder()
                 .setColor('#00ff00')
@@ -1667,7 +1681,7 @@ class WebServer {
                 .addFields(
                     { name: '👤 Added by', value: track.requester?.displayName || 'Web Dashboard', inline: true },
                     { name: '🎛️ Source', value: 'Web Dashboard', inline: true },
-                    { name: '📊 Queue Position', value: queuePosition > 0 ? `#${queuePosition + 1}` : 'Now Playing', inline: true }
+                    { name: '📊 Queue Position', value: queuePositionDisplay, inline: true }
                 )
                 .setTimestamp();
             

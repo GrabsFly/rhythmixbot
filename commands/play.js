@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,7 +17,7 @@ module.exports = {
             if (!voiceChannel) {
                 return await interaction.reply({
                     content: '❌ You need to be in a voice channel to play music!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -26,7 +26,7 @@ module.exports = {
             if (!permissions.has(['Connect', 'Speak'])) {
                 return await interaction.reply({
                     content: '❌ I don\'t have permission to connect or speak in your voice channel!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -137,7 +137,7 @@ module.exports = {
             
             const errorMessage = {
                 content: '❌ An error occurred while trying to play music. Please try again.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             };
             
             try {

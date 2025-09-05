@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -18,7 +18,7 @@ module.exports = {
             if (!player) {
                 return await interaction.reply({
                     content: '❌ There is no music playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -28,14 +28,14 @@ module.exports = {
             if (queue.length === 0) {
                 return await interaction.reply({
                     content: '❌ The queue is empty!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
             if (position > queue.length) {
                 return await interaction.reply({
                     content: `❌ Invalid position! The queue only has **${queue.length}** track${queue.length === 1 ? '' : 's'}.`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -77,7 +77,7 @@ module.exports = {
             console.error('Error in remove command:', error);
             await interaction.reply({
                 content: '❌ An error occurred while removing the track.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },

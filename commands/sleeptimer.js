@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -18,7 +18,7 @@ module.exports = {
         if (!player || !player.queue.current) {
             return interaction.reply({
                 content: 'There is no music currently playing.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -60,8 +60,7 @@ module.exports = {
         }
         
         await interaction.reply({
-            content: `⏰ Sleep timer set for **${timeString}**. Music will automatically stop after this time.`,
-            ephemeral: false
+            content: `⏰ Sleep timer set for **${timeString}**. Music will automatically stop after this time.`
         });
     },
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -18,7 +18,7 @@ module.exports = {
             if (!voiceChannel) {
                 return await interaction.reply({
                     content: '❌ You need to be in a voice channel to use this command!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -27,7 +27,7 @@ module.exports = {
             if (!player) {
                 return await interaction.reply({
                     content: '❌ No music is currently playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -35,7 +35,7 @@ module.exports = {
             if (player.voiceChannelId !== voiceChannel.id) {
                 return await interaction.reply({
                     content: '❌ You need to be in the same voice channel as the bot!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -94,7 +94,7 @@ module.exports = {
             console.error('Error in volume command:', error);
             await interaction.reply({
                 content: '❌ An error occurred while changing the volume!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }

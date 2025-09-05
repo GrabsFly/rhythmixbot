@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -20,7 +20,7 @@ module.exports = {
             if (!player) {
                 return await interaction.reply({
                     content: '❌ No music is currently playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -28,7 +28,7 @@ module.exports = {
             if (!currentTrack) {
                 return await interaction.reply({
                     content: '❌ No track is currently playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -173,7 +173,7 @@ module.exports = {
             console.error('Error in nowplaying command:', error);
             await interaction.reply({
                 content: '❌ An error occurred while displaying track information!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }

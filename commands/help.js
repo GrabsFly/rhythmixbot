@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -176,7 +176,7 @@ module.exports = {
                         .addFields(
                             {
                                 name: '🔧 Bot Settings',
-                                value: '`/247` - Enable/disable 24/7 mode\n`/defaultvolume` - Set default volume for new sessions',
+                                value: '`/settings` - Interactive settings menu for all configurations\n`/247` - Enable/disable 24/7 mode\n`/defaultvolume` - Set default volume for new sessions',
                                 inline: false
                             },
                             {

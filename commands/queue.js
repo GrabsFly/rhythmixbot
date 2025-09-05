@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,7 +17,7 @@ module.exports = {
             if (!player) {
                 return await interaction.reply({
                     content: '❌ There is no music playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -32,7 +32,7 @@ module.exports = {
             if (page > totalPages && totalPages > 0) {
                 return await interaction.reply({
                     content: `❌ Invalid page number! Please choose a page between 1 and ${totalPages}.`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -119,7 +119,7 @@ module.exports = {
             console.error('Error in queue command:', error);
             await interaction.reply({
                 content: '❌ An error occurred while displaying the queue!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }

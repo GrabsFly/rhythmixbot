@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -18,7 +18,7 @@ module.exports = {
             if (!voiceChannel) {
                 return await interaction.reply({
                     content: '❌ You need to be in a voice channel to use this command!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -27,7 +27,7 @@ module.exports = {
             if (!player) {
                 return await interaction.reply({
                     content: '❌ There is no music playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -35,7 +35,7 @@ module.exports = {
             if (player.voiceChannelId !== voiceChannel.id) {
                 return await interaction.reply({
                     content: '❌ You need to be in the same voice channel as the bot!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -45,7 +45,7 @@ module.exports = {
             if (!currentTrack) {
                 return await interaction.reply({
                     content: '❌ There is no track currently playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -53,7 +53,7 @@ module.exports = {
             if (skipAmount > 1 && player.queue.tracks.length < skipAmount - 1) {
                 return await interaction.reply({
                     content: `❌ Not enough tracks in queue! Only ${player.queue.tracks.length + 1} tracks available.`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -113,7 +113,7 @@ module.exports = {
             console.error('Error in skip command:', error);
             await interaction.reply({
                 content: '❌ An error occurred while trying to skip the track(s)!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }

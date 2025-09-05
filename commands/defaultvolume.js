@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -41,11 +41,14 @@ module.exports = {
     
     async execute(interaction, client) {
         try {
-            // Check if user has administrator permissions
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            // Check if user has administrator or manage guild permissions
+            const hasAdminPerms = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || 
+                                interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
+            
+            if (!hasAdminPerms) {
                 return await interaction.reply({
-                    content: 'You need administrator permissions to use this command.',
-                    ephemeral: true
+                    content: '❌ You need Administrator or Manage Server permissions to use this command.',
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -116,7 +119,7 @@ module.exports = {
             
             const errorMessage = {
                 content: 'An error occurred while processing the default volume command.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             };
             
             if (interaction.deferred) {

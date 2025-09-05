@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -280,7 +280,7 @@ module.exports = {
                 default:
                     await interaction.reply({
                         content: '❌ Unknown subcommand!',
-                        ephemeral: true
+                        flags: MessageFlags.Ephemeral
                     });
             }
         } catch (error) {
@@ -288,7 +288,7 @@ module.exports = {
             
             const errorMessage = {
                 content: '❌ An error occurred while processing your playlist command!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             };
             
             if (interaction.deferred) {
@@ -305,7 +305,7 @@ module.exports = {
         if (playlistName.length > 50) {
             return await interaction.reply({
                 content: '❌ Playlist name must be 50 characters or less!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -317,7 +317,7 @@ module.exports = {
         if (allPlaylists[userId][playlistName]) {
             return await interaction.reply({
                 content: `❌ You already have a playlist named "${playlistName}"!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -344,7 +344,7 @@ module.exports = {
         } else {
             await interaction.reply({
                 content: '❌ Failed to create playlist. Please try again!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },
@@ -355,7 +355,7 @@ module.exports = {
         if (playlistName.length > 50) {
             return await interaction.reply({
                 content: '❌ Playlist name must be 50 characters or less!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -363,7 +363,7 @@ module.exports = {
         if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
             return await interaction.reply({
                 content: '❌ No music is currently playing or queued!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -421,7 +421,7 @@ module.exports = {
         } else {
             await interaction.reply({
                 content: '❌ Failed to save playlist. Please try again!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },
@@ -434,7 +434,7 @@ module.exports = {
         if (!voiceChannel) {
             return await interaction.reply({
                 content: '❌ You need to be in a voice channel to load a playlist!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -443,7 +443,7 @@ module.exports = {
         if (!permissions.has(['Connect', 'Speak'])) {
             return await interaction.reply({
                 content: '❌ I need permissions to connect and speak in your voice channel!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -453,14 +453,14 @@ module.exports = {
         if (!playlist) {
             return await interaction.reply({
                 content: `❌ You don't have a playlist named "${playlistName}"!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
         if (playlist.tracks.length === 0) {
             return await interaction.reply({
                 content: `❌ Playlist "${playlistName}" is empty!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -538,7 +538,7 @@ module.exports = {
         if (!userPlaylists[playlistName]) {
             return await interaction.reply({
                 content: `❌ You don't have a playlist named "${playlistName}"!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -556,7 +556,7 @@ module.exports = {
         } else {
             await interaction.reply({
                 content: '❌ Failed to delete playlist. Please try again!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },
@@ -568,7 +568,7 @@ module.exports = {
         if (playlistNames.length === 0) {
             return await interaction.reply({
                 content: '📋 You don\'t have any saved playlists yet!\n\nUse `/playlist create <name>` to create a new playlist or `/playlist save <name>` to save your current queue.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -600,7 +600,7 @@ module.exports = {
         if (!playlist) {
             return await interaction.reply({
                 content: `❌ You don't have a playlist named "${playlistName}"!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -648,7 +648,7 @@ module.exports = {
         if (!this.hasServerPermission(interaction)) {
             return await interaction.reply({
                 content: '❌ You need "Manage Server" or "Administrator" permissions to create server playlists!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
 
@@ -657,7 +657,7 @@ module.exports = {
         if (playlistName.length > 50) {
             return await interaction.reply({
                 content: '❌ Playlist name must be 50 characters or less!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -666,7 +666,7 @@ module.exports = {
         if (serverPlaylists[playlistName]) {
             return await interaction.reply({
                 content: `❌ Server already has a playlist named "${playlistName}"!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -696,7 +696,7 @@ module.exports = {
         } else {
             await interaction.reply({
                 content: '❌ Failed to create server playlist. Please try again!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },
@@ -705,7 +705,7 @@ module.exports = {
         if (!this.hasServerPermission(interaction)) {
             return await interaction.reply({
                 content: '❌ You need "Manage Server" or "Administrator" permissions to save server playlists!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
 
@@ -714,7 +714,7 @@ module.exports = {
         if (playlistName.length > 50) {
             return await interaction.reply({
                 content: '❌ Playlist name must be 50 characters or less!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -722,7 +722,7 @@ module.exports = {
         if (!player || (!player.queue.current && player.queue.tracks.length === 0)) {
             return await interaction.reply({
                 content: '❌ No music is currently playing or queued!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -779,7 +779,7 @@ module.exports = {
         } else {
             await interaction.reply({
                 content: '❌ Failed to save server playlist. Please try again!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },
@@ -791,7 +791,7 @@ module.exports = {
         if (!serverPlaylists[playlistName]) {
             return await interaction.reply({
                 content: `❌ Server playlist "${playlistName}" not found!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -800,7 +800,7 @@ module.exports = {
         if (!playlist.tracks || playlist.tracks.length === 0) {
             return await interaction.reply({
                 content: `❌ Server playlist "${playlistName}" is empty!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -809,7 +809,7 @@ module.exports = {
         if (!voiceChannel) {
             return await interaction.reply({
                 content: '❌ You need to be in a voice channel to load a playlist!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -877,7 +877,7 @@ module.exports = {
         if (!this.hasServerPermission(interaction)) {
             return await interaction.reply({
                 content: '❌ You need "Manage Server" or "Administrator" permissions to delete server playlists!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
 
@@ -887,7 +887,7 @@ module.exports = {
         if (!serverPlaylists[playlistName]) {
             return await interaction.reply({
                 content: `❌ Server playlist "${playlistName}" not found!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         
@@ -907,7 +907,7 @@ module.exports = {
         } else {
             await interaction.reply({
                 content: '❌ Failed to delete server playlist. Please try again!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },
@@ -959,7 +959,7 @@ module.exports = {
         if (!serverPlaylists[playlistName]) {
             return await interaction.reply({
                 content: `❌ Server playlist "${playlistName}" not found!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
         

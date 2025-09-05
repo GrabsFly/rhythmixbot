@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -18,14 +18,14 @@ module.exports = {
             if (!player) {
                 return await interaction.reply({
                     content: '❌ There is no music playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
             if (!player.queue.current) {
                 return await interaction.reply({
                     content: '❌ No track is currently playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -66,7 +66,7 @@ module.exports = {
             console.error('Error in rewind command:', error);
             await interaction.reply({
                 content: '❌ An error occurred while rewinding the track.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },

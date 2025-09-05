@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,14 +17,14 @@ module.exports = {
             if (!player) {
                 return await interaction.reply({
                     content: '❌ There is no music playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
             if (!player.queue.current) {
                 return await interaction.reply({
                     content: '❌ No track is currently playing!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -34,7 +34,7 @@ module.exports = {
             if (seekPosition === null) {
                 return await interaction.reply({
                     content: '❌ Invalid time format! Use mm:ss, hh:mm:ss, or seconds (e.g., 1:30, 0:01:30, or 90)',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -43,7 +43,7 @@ module.exports = {
             if (seekPosition > trackDuration) {
                 return await interaction.reply({
                     content: `❌ Seek position (${formatDuration(seekPosition)}) is beyond track duration (${formatDuration(trackDuration)})!`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -80,7 +80,7 @@ module.exports = {
             console.error('Error in seek command:', error);
             await interaction.reply({
                 content: '❌ An error occurred while seeking in the track.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     },

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,11 +24,28 @@ module.exports = {
         }
 
         try {
+            // Check if Lavalink is available
+            if (!interaction.client.lavalinkAvailable) {
+                return await interaction.reply({ 
+                    content: '❌ Music service is currently unavailable. Please try again in a few moments.', 
+                    flags: 64 
+                });
+            }
+
             // Check if player already exists
             const player = interaction.client.lavalink.getPlayer(interaction.guildId);
             if (player && player.connected) {
                 return await interaction.reply({ 
                     content: '✅ I\'m already connected to a voice channel!', 
+                    flags: 64 
+                });
+            }
+
+            // Check if there are any connected nodes
+            const connectedNodes = Array.from(interaction.client.lavalink.nodeManager.nodes.values()).filter(node => node.connected);
+            if (connectedNodes.length === 0) {
+                return await interaction.reply({ 
+                    content: '❌ Music service nodes are not connected. Please try again later.', 
                     flags: 64 
                 });
             }
@@ -57,8 +74,18 @@ module.exports = {
 
         } catch (error) {
             console.error('Error joining voice channel:', error);
+            
+            // Provide more specific error messages
+            let errorMessage = '❌ Failed to join the voice channel. Please try again.';
+            
+            if (error.message && error.message.includes('No available Node')) {
+                errorMessage = '❌ Music service is temporarily unavailable. Please try again in a few moments.';
+            } else if (error.message && error.message.includes('Missing Permissions')) {
+                errorMessage = '❌ I don\'t have permission to join that voice channel.';
+            }
+            
             await interaction.reply({ 
-                content: '❌ Failed to join the voice channel. Please try again.', 
+                content: errorMessage, 
                 flags: 64 
             });
         }
